@@ -1,0 +1,59 @@
+version: '3'
+
+services:
+
+  chain-service:
+    container_name: chain-service-dev
+
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+
+      args:
+        - POETRY_USERNAME=${POETRY_USERNAME}
+        - POETRY_PASSWORD=${POETRY_PASSWORD}
+
+    env_file:
+      - .env
+
+    environment:
+      - DATABASE_URL=mongodb://chain-service:password@chain-db:27017
+
+    ports:
+      - 8010:8010
+
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./chain_service/
+          target: /app/chain_service/
+
+        - action: rebuild
+          path: ./poetry.lock
+
+    depends_on:
+      - chain-db
+
+  chain-db:
+    image: mongo
+    container_name: chain-db-dev
+
+    ports:
+      - 27017:27017
+
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=chain-service
+      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_DATABASE=chain-db
+
+    volumes:
+      - chain-db-dev:/data/db
+
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  chain-db-dev:
